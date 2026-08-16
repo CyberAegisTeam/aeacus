@@ -220,7 +220,7 @@ func TestAuthoringExportsStaySeparate(t *testing.T) {
 		t.Fatalf("unexpected FQ file: %s", files["FQ1.txt"])
 	}
 	readme := renderReadmeHTML(project)
-	for _, heading := range []string{"Unique Identifier", "Forensics Questions", "Competition Scenario", "Competition Guidelines"} {
+	for _, heading := range []string{"Unique Identifier", "Forensics Questions", "Competition Scenario", "Competition Guidelines", "currently does not use any centralized maintenance or polling tools", "time zone of this image is set to UTC", "Copyright Never"} {
 		if !strings.Contains(readme, heading) {
 			t.Fatalf("README missing %s", heading)
 		}

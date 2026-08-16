@@ -107,12 +107,12 @@ func (s *studioServer) routes() http.Handler {
 	mux.HandleFunc("/", s.serveWeb)
 	mux.HandleFunc("/api/state", s.api(s.handleState))
 	mux.HandleFunc("/api/project", s.api(s.handleProject))
-	mux.HandleFunc("/api/project/new", s.api(s.handleNewProject))
-	mux.HandleFunc("/api/project/create-workspace", s.api(s.handleCreateWorkspace))
-	mux.HandleFunc("/api/project/open-workspace", s.api(s.handleOpenWorkspace))
-	mux.HandleFunc("/api/projects/recent", s.api(s.handleRecentProjects))
-	mux.HandleFunc("/api/project/switch", s.api(s.handleSwitchProject))
-	mux.HandleFunc("/api/project/download", s.api(s.handleProjectDownload))
+	mux.HandleFunc("/api/project/new", s.api(s.personalOnly(s.handleNewProject)))
+	mux.HandleFunc("/api/project/create-workspace", s.api(s.personalOnly(s.handleCreateWorkspace)))
+	mux.HandleFunc("/api/project/open-workspace", s.api(s.personalOnly(s.handleOpenWorkspace)))
+	mux.HandleFunc("/api/projects/recent", s.api(s.personalOnly(s.handleRecentProjects)))
+	mux.HandleFunc("/api/project/switch", s.api(s.personalOnly(s.handleSwitchProject)))
+	mux.HandleFunc("/api/project/download", s.api(s.personalOnly(s.handleProjectDownload)))
 	mux.HandleFunc("/api/project/import", s.api(s.handleProjectImport))
 	mux.HandleFunc("/api/config/import", s.api(s.handleConfigImport))
 	mux.HandleFunc("/api/config/download", s.api(s.handleConfigDownload))
@@ -424,6 +424,16 @@ func (s *studioServer) developmentOnly(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.mode != "development" {
 			writeJSON(w, http.StatusForbidden, apiError{"Development Studio only"})
+			return
+		}
+		next(w, r)
+	}
+}
+
+func (s *studioServer) personalOnly(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.mode != "personal" {
+			writeJSON(w, http.StatusForbidden, apiError{"Personal Studio only"})
 			return
 		}
 		next(w, r)

@@ -354,12 +354,35 @@ func renderReadmeFragment(project Project) string {
 func renderReadmeHTML(project Project) string {
 	osName := html.EscapeString(project.Config.OS)
 	title := html.EscapeString(project.Config.Title)
-	osPolicy := `<p>It is company policy to use only ` + osName + ` on this computer. It is also company policy to use only the latest, official, stable ` + osName + ` packages available for required software and services. Management has decided that the default web browser should be the latest stable version of Firefox.`
+	osPolicy := `<p>
+	It is company policy to use only ` + osName + ` on this computer. It is also company policy to use only the
+	latest, official, stable ` + osName + ` packages available for required software and services on this computer.
+	Management has decided that the default web browser for all users on this computer should be the latest stable
+	version of Firefox.`
 	if !strings.Contains(strings.ToLower(project.Config.OS), "windows") {
-		osPolicy += ` Company policy is to never let users log in as root. Administrators must use sudo when root access is required.`
+		osPolicy += ` Company policy is to never let users log in as root.
+		If administrators need to run commands as root, they are required to use the "sudo" command.`
 	}
 	osPolicy += `</p>`
-	return `<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Aeacus README</title><style>body{background-image:url("./img/background.png");background-size:cover;font-family:Helvetica,Arial,sans-serif}.main{margin:25px auto 10px;background:#fff;max-width:100%}.text{padding:12px 40px}h1{text-align:center;font-size:36px;margin:10px;color:#0D2E5B}h2{font-size:18px;margin:30px 0 10px;color:#0D2E5B}.wrap{width:80%;margin:auto;display:block}</style></head><body><div class="wrap"><div class="main"><div class="text"><p style="text-align:center"><img src="./img/logo.png" style="width:250px"></p><h1><b>` + osName + ` ` + title + ` README</b></h1><p>Please read the entire README thoroughly before modifying anything on this computer.</p><h2>Unique Identifier</h2><p>If you have not yet entered a valid Team ID, do so immediately by double-clicking the “Team ID” icon on the desktop. Without a valid Team ID this VM may stop functioning.</p><h2>Forensics Questions</h2><p>Valid scored Forensics Questions are located directly on the Desktop. Read every question before modifying this computer because your changes may prevent you from answering it.</p><h2>Competition Scenario</h2><p>All accounts must be password protected. Non-work media and hacking tools are prohibited. This computer is for official business use in a production environment. Do not upgrade the operating system.</p><h2><b>` + osName + `</b></h2>` + osPolicy + renderReadmeFragment(project) + `<h2>Competition Guidelines</h2><ul><li>You are not required to change the primary auto-login account password.</li><li>Authorized administrator passwords may not be currently accurate.</li><li>Do not disable or stop the CSSClient service or process.</li><li>Do not remove authorized users or their home directories.</li><li>Do not change the time zone, date, or time.</li><li>Open the Scoring Report desktop shortcut to view your score.</li><li>Do not disable JavaScript in the scoring report.</li><li>If Stop Scoring cannot run, suspend the virtual machine and do not power it on again before deletion.</li></ul><p style="text-align:center">The Aeacus Project is in no way affiliated with or endorsed by the Air Force Association or the University of Texas at San Antonio.</p></div></div></div></body></html>`
+	return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Aeacus README</title><style>body{background-image:url("./img/background.png");background-size:cover;font-family:Helvetica,Arial,sans-serif}h1{text-align:center;font-size:36px;margin:10px;padding:0 14px 10px 0;width:100%;height:100%;color:#0D2E5B!important}h2{font-size:18px;margin:30px 0 10px;padding:0;width:100%;height:100%;color:#0D2E5B!important}pre{font-size:16px}.main{margin:25px auto 10px;padding:0;background:#fff;max-width:100%}.text{padding:12px 40px}.center{text-align:center}</style></head><body><div style="width:80%;margin-left:auto;margin-right:auto;display:block"><div class="main"><div class="text"><p align="center"><img src="./img/logo.png" style="width:250px"></p><h1><b>` + osName + ` ` + title + ` README</b></h1><p> Please read the entire README thoroughly before modifying anything on this computer.</p>
+	<h2>Unique Identifier</h2><p> If you have not yet entered a valid Team ID, please do so immediately by double clicking on the "Team ID" icon
+	on the desktop. If you do not enter a valid Team ID this VM may stop functioning after a short period of time.
+	</p><h2>Forensics Questions</h2><p> If there are "Forensics Questions" on your Desktop, you will receive points for
+	answering these questions correctly. Valid (scored) "Forensics Questions" will only be located directly on your Desktop.
+	Please read all "Forensics Questions" thoroughly before modifying this computer, as you may change something that
+	prevents you from answering the question correctly.
+	</p><h2>Competition Scenario</h2><p>This company's security policies require that all user accounts be password protected.
+	Employees are required to choose secure passwords, however this policy may not be currently enforced on this computer.
+	The presence of any non-work related media files and "hacking tools" on any computers is strictly prohibited.
+	This company currently does not use any centralized maintenance or polling tools to manage their IT equipment.
+	This computer is for official business use only by authorized users. This is a critical computer in a production environment.
+	Please do <b>NOT</b> attempt to upgrade the operating system on this machine.</p><h2><b>` + osName + `</b></h2>` + osPolicy + renderReadmeFragment(project) + `<h2>Competition Guidelines</h2><ul><li> In order to provide a better competition experience, you are
+	<b>NOT</b> required to change the password of the primary, auto-login, user account. Changing the password of a user that is set to automatically log in may lock you out of your computer.
+	</li><li> Authorized administrator passwords were correct the last time you did a password audit, but are not guaranteed to be currently accurate.</li><li> Do not disable or stop the CSSClient service or process.
+	</li><li> Do not remove any authorized users or their home directories.</li><li>The time zone of this image is set to UTC. Please do not change the time zone, date, or time on this image.</li><li>
+	You can view your current scoring report by double-clicking the "Scoring Report" desktop icon.</li><li>JavaScript is required for some error messages that appear on the "Scoring Report." To ensure that you only receive correct error messages, please do not disable JavaScript.</li><li>
+	Some security settings may prevent the Stop Scoring application from running. If this happens, the safest way to stop scoring is to suspend the virtual machine. You should <b>NOT</b> power on the VM again before deleting.</li></ul>
+	<p align="center" style="text-align:center">The Aeacus Project is in no way affiliated or endorsed by the Air Force Association or the University of Texas at San Antonio.</p></div></div></div><div class="footer"><div class="footer-copyright-wrap"><div class="container"><div class="footer-copyright-content"><ul><li>Copyright Never &copy;</li><li>No rights reserved</li></ul></div></div></div></div></body></html>`
 }
 
 func sanitizeReadmeHTML(input string) string {
