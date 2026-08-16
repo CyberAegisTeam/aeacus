@@ -228,31 +228,6 @@ func synchronizeForensicChecks(project *Project) {
 			filtered = append(filtered, check)
 		}
 	}
-	for qIndex, question := range project.Forensics {
-		for partIndex, part := range question.Parts {
-			if len(part.Answers) == 0 {
-				continue
-			}
-			values := make([]string, 0, len(part.Answers))
-			for _, answer := range part.Answers {
-				value := regexp.QuoteMeta(answer)
-				if part.FlexibleWhitespace {
-					value = strings.ReplaceAll(value, `\ `, `[[:space:]]+`)
-				}
-				values = append(values, value)
-			}
-			prefix := ""
-			if !part.CaseSensitive {
-				prefix = "(?i)"
-			}
-			pattern := prefix + `^[[:space:]]*ANSWER:[[:space:]]+(` + strings.Join(values, "|") + `)[[:space:]]*$`
-			filtered = append(filtered, Check{
-				ID: fmt.Sprintf("studio-fq-%d-%d", qIndex+1, partIndex+1), Category: "Forensics",
-				Message: fmt.Sprintf("Forensic Question %d Part %d Correct", qIndex+1, partIndex+1), Points: 5,
-				Pass: []Condition{{Type: "FileContainsRegex", Path: fmt.Sprintf("%s/Desktop/FQ%d.txt", homeForConfig(project.Config), qIndex+1), Value: pattern}},
-			})
-		}
-	}
 	project.Config.Checks = filtered
 	ensureCheckIDs(&project.Config)
 }
@@ -312,14 +287,23 @@ func generateSetupScripts(project Project) []ProjectScript {
 		if shell == "" {
 			shell = "/bin/bash"
 		}
-		linux.WriteString(fmt.Sprintf("if ! id %s >/dev/null 2>&1; then useradd -m -s %s %s; fi\necho %s:%s | chpasswd\n", shellQuote(user.Username), shellQuote(shell), shellQuote(user.Username), shellQuote(user.Username), shellQuote(user.Password)))
+		linuxPassword := user.Password
+		if linuxPassword == "" && user.Role == "user" {
+			linuxPassword = "password"
+		}
+		linux.WriteString(fmt.Sprintf("if ! id %s >/dev/null 2>&1; then useradd -m -s %s %s; fi\necho %s:%s | chpasswd\n", shellQuote(user.Username), shellQuote(shell), shellQuote(user.Username), shellQuote(user.Username), shellQuote(linuxPassword)))
 		if user.Role == "admin" || user.Role == "primary" {
 			linux.WriteString(fmt.Sprintf("usermod -aG sudo %s\n", shellQuote(user.Username)))
 		}
 		for _, group := range user.Groups {
 			linux.WriteString(fmt.Sprintf("getent group %s >/dev/null || groupadd %s\nusermod -aG %s %s\n", shellQuote(group), shellQuote(group), shellQuote(group), shellQuote(user.Username)))
 		}
-		windows.WriteString(fmt.Sprintf("if (-not (Get-LocalUser -Name %s -ErrorAction SilentlyContinue)) { $pw = ConvertTo-SecureString %s -AsPlainText -Force; New-LocalUser -Name %s -Password $pw -FullName %s }\n", psQuote(user.Username), psQuote(user.Password), psQuote(user.Username), psQuote(user.FullName)))
+		if user.Password == "" {
+			windows.WriteString(fmt.Sprintf("if (-not (Get-LocalUser -Name %s -ErrorAction SilentlyContinue)) { New-LocalUser -Name %s -NoPassword }\n", psQuote(user.Username), psQuote(user.Username)))
+		} else {
+			windows.WriteString(fmt.Sprintf("if (-not (Get-LocalUser -Name %s -ErrorAction SilentlyContinue)) { $pw = ConvertTo-SecureString %s -AsPlainText -Force; New-LocalUser -Name %s -Password $pw }\n", psQuote(user.Username), psQuote(user.Password), psQuote(user.Username)))
+		}
+		windows.WriteString(fmt.Sprintf("$home = Join-Path 'C:\\Users' %s\nNew-Item -ItemType Directory -Force -Path $home | Out-Null\n@('Desktop','Documents','Downloads','Music','Pictures','Videos') | ForEach-Object { New-Item -ItemType Directory -Force -Path (Join-Path $home $_) | Out-Null }\n", psQuote(user.Username)))
 		if user.Role == "admin" || user.Role == "primary" {
 			windows.WriteString(fmt.Sprintf("Add-LocalGroupMember -Group 'Administrators' -Member %s -ErrorAction SilentlyContinue\n", psQuote(user.Username)))
 		}
@@ -365,6 +349,17 @@ func renderReadmeFragment(project Project) string {
 		}
 	}
 	return output.String()
+}
+
+func renderReadmeHTML(project Project) string {
+	osName := html.EscapeString(project.Config.OS)
+	title := html.EscapeString(project.Config.Title)
+	osPolicy := `<p>It is company policy to use only ` + osName + ` on this computer. It is also company policy to use only the latest, official, stable ` + osName + ` packages available for required software and services. Management has decided that the default web browser should be the latest stable version of Firefox.`
+	if !strings.Contains(strings.ToLower(project.Config.OS), "windows") {
+		osPolicy += ` Company policy is to never let users log in as root. Administrators must use sudo when root access is required.`
+	}
+	osPolicy += `</p>`
+	return `<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Aeacus README</title><style>body{background-image:url("./img/background.png");background-size:cover;font-family:Helvetica,Arial,sans-serif}.main{margin:25px auto 10px;background:#fff;max-width:100%}.text{padding:12px 40px}h1{text-align:center;font-size:36px;margin:10px;color:#0D2E5B}h2{font-size:18px;margin:30px 0 10px;color:#0D2E5B}.wrap{width:80%;margin:auto;display:block}</style></head><body><div class="wrap"><div class="main"><div class="text"><p style="text-align:center"><img src="./img/logo.png" style="width:250px"></p><h1><b>` + osName + ` ` + title + ` README</b></h1><p>Please read the entire README thoroughly before modifying anything on this computer.</p><h2>Unique Identifier</h2><p>If you have not yet entered a valid Team ID, do so immediately by double-clicking the “Team ID” icon on the desktop. Without a valid Team ID this VM may stop functioning.</p><h2>Forensics Questions</h2><p>Valid scored Forensics Questions are located directly on the Desktop. Read every question before modifying this computer because your changes may prevent you from answering it.</p><h2>Competition Scenario</h2><p>All accounts must be password protected. Non-work media and hacking tools are prohibited. This computer is for official business use in a production environment. Do not upgrade the operating system.</p><h2><b>` + osName + `</b></h2>` + osPolicy + renderReadmeFragment(project) + `<h2>Competition Guidelines</h2><ul><li>You are not required to change the primary auto-login account password.</li><li>Authorized administrator passwords may not be currently accurate.</li><li>Do not disable or stop the CSSClient service or process.</li><li>Do not remove authorized users or their home directories.</li><li>Do not change the time zone, date, or time.</li><li>Open the Scoring Report desktop shortcut to view your score.</li><li>Do not disable JavaScript in the scoring report.</li><li>If Stop Scoring cannot run, suspend the virtual machine and do not power it on again before deletion.</li></ul><p style="text-align:center">The Aeacus Project is in no way affiliated with or endorsed by the Air Force Association or the University of Texas at San Antonio.</p></div></div></div></body></html>`
 }
 
 func sanitizeReadmeHTML(input string) string {

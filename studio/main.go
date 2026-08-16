@@ -44,6 +44,7 @@ type studioServer struct {
 	mode        string
 	token       string
 	projectPath string
+	recent      []string
 	targetDir   string
 	ctx         context.Context
 }
@@ -61,6 +62,7 @@ func main() {
 		log.Fatal("mode must be personal or development")
 	}
 	server := &studioServer{mode: *mode, token: randomToken(), projectPath: *projectPath, targetDir: *targetDir, project: newProject()}
+	server.recent = loadRecentProjects(*mode)
 	if *projectPath != "" {
 		if err := server.loadProject(*projectPath); err != nil {
 			log.Fatalf("open project: %v", err)
@@ -106,11 +108,16 @@ func (s *studioServer) routes() http.Handler {
 	mux.HandleFunc("/api/state", s.api(s.handleState))
 	mux.HandleFunc("/api/project", s.api(s.handleProject))
 	mux.HandleFunc("/api/project/new", s.api(s.handleNewProject))
+	mux.HandleFunc("/api/project/create-workspace", s.api(s.handleCreateWorkspace))
+	mux.HandleFunc("/api/project/open-workspace", s.api(s.handleOpenWorkspace))
+	mux.HandleFunc("/api/projects/recent", s.api(s.handleRecentProjects))
+	mux.HandleFunc("/api/project/switch", s.api(s.handleSwitchProject))
 	mux.HandleFunc("/api/project/download", s.api(s.handleProjectDownload))
 	mux.HandleFunc("/api/project/import", s.api(s.handleProjectImport))
 	mux.HandleFunc("/api/config/import", s.api(s.handleConfigImport))
 	mux.HandleFunc("/api/config/download", s.api(s.handleConfigDownload))
 	mux.HandleFunc("/api/readme/download", s.api(s.handleReadmeDownload))
+	mux.HandleFunc("/api/readme/preview", s.api(s.handleReadmePreview))
 	mux.HandleFunc("/api/forensics/download", s.api(s.handleForensicsDownload))
 	mux.HandleFunc("/api/scripts/generate", s.api(s.handleGenerateScripts))
 	mux.HandleFunc("/api/regex", s.api(s.handleRegex))
@@ -174,6 +181,9 @@ func (s *studioServer) handleDesktopSave(w http.ResponseWriter, r *http.Request)
 	case "readme":
 		name, mimeType = "ReadMe.conf", "text/html"
 		data = []byte(renderReadmeFragment(project))
+	case "readmeHTML":
+		name, mimeType = "ReadMe.html", "text/html"
+		data = []byte(renderReadmeHTML(project))
 	case "scoringData":
 		for _, issue := range validateProject(project) {
 			if issue.Level == "error" {
@@ -217,6 +227,186 @@ func (s *studioServer) handleDesktopSave(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	writeJSON(w, 200, map[string]any{"path": path, "type": mimeType})
+}
+
+func (s *studioServer) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		methodNotAllowed(w)
+		return
+	}
+	var request struct {
+		Name string `json:"name"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeJSON(w, 400, apiError{err.Error()})
+		return
+	}
+	name := strings.TrimSpace(request.Name)
+	if name == "" {
+		name = "Untitled Aeacus Image"
+	}
+	directoryName := slug(name)
+	if directoryName == "" {
+		directoryName = "aeacus-project"
+	}
+	s.mu.RLock()
+	ctx := s.ctx
+	s.mu.RUnlock()
+	if ctx == nil {
+		writeJSON(w, 503, apiError{"desktop window is not ready"})
+		return
+	}
+	parent, err := wailsRuntime.OpenDirectoryDialog(ctx, wailsRuntime.OpenDialogOptions{Title: "Choose where to create the Aeacus project"})
+	if err != nil {
+		writeJSON(w, 500, apiError{err.Error()})
+		return
+	}
+	if parent == "" {
+		writeJSON(w, 200, map[string]any{"cancelled": true})
+		return
+	}
+	directory := filepath.Join(parent, directoryName)
+	path := filepath.Join(directory, "project.aeacus")
+	if _, err := os.Stat(path); err == nil {
+		writeJSON(w, 409, apiError{"A project with this name already exists in that location"})
+		return
+	}
+	if err := os.MkdirAll(directory, 0755); err != nil {
+		writeJSON(w, 500, apiError{err.Error()})
+		return
+	}
+	project := newProject()
+	project.Name = name
+	s.mu.Lock()
+	s.project, s.projectPath = project, path
+	s.addRecentLocked(path)
+	s.mu.Unlock()
+	if err := s.saveProject(path); err != nil {
+		writeJSON(w, 500, apiError{err.Error()})
+		return
+	}
+	writeJSON(w, 200, map[string]any{"project": project, "issues": validateProject(project), "path": path, "recent": s.recent})
+}
+
+func (s *studioServer) handleOpenWorkspace(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		methodNotAllowed(w)
+		return
+	}
+	s.mu.RLock()
+	ctx := s.ctx
+	s.mu.RUnlock()
+	if ctx == nil {
+		writeJSON(w, 503, apiError{"desktop window is not ready"})
+		return
+	}
+	directory, err := wailsRuntime.OpenDirectoryDialog(ctx, wailsRuntime.OpenDialogOptions{Title: "Open an Aeacus project folder"})
+	if err != nil {
+		writeJSON(w, 500, apiError{err.Error()})
+		return
+	}
+	if directory == "" {
+		writeJSON(w, 200, map[string]any{"cancelled": true})
+		return
+	}
+	path := filepath.Join(directory, "project.aeacus")
+	if _, err := os.Stat(path); err != nil {
+		writeJSON(w, 400, apiError{"This folder does not contain project.aeacus"})
+		return
+	}
+	if err := s.openProjectPath(path); err != nil {
+		writeJSON(w, 400, apiError{err.Error()})
+		return
+	}
+	s.writeProjectState(w)
+}
+
+func (s *studioServer) handleSwitchProject(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		methodNotAllowed(w)
+		return
+	}
+	var request struct {
+		Path string `json:"path"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeJSON(w, 400, apiError{err.Error()})
+		return
+	}
+	if err := s.openProjectPath(request.Path); err != nil {
+		writeJSON(w, 400, apiError{err.Error()})
+		return
+	}
+	s.writeProjectState(w)
+}
+
+func (s *studioServer) handleRecentProjects(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w)
+		return
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	writeJSON(w, 200, map[string]any{"current": s.projectPath, "recent": s.recent})
+}
+func (s *studioServer) writeProjectState(w http.ResponseWriter) {
+	s.mu.RLock()
+	project, path, recent := s.project, s.projectPath, append([]string(nil), s.recent...)
+	s.mu.RUnlock()
+	writeJSON(w, 200, map[string]any{"project": project, "issues": validateProject(project), "path": path, "recent": recent})
+}
+func (s *studioServer) openProjectPath(path string) error {
+	if err := s.loadProject(path); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	s.projectPath = path
+	s.addRecentLocked(path)
+	s.mu.Unlock()
+	return nil
+}
+func (s *studioServer) addRecentLocked(path string) {
+	next := []string{path}
+	for _, item := range s.recent {
+		if item != path {
+			if _, err := os.Stat(item); err == nil {
+				next = append(next, item)
+			}
+		}
+		if len(next) >= 8 {
+			break
+		}
+	}
+	s.recent = next
+	saveRecentProjects(s.mode, next)
+}
+func recentProjectsPath(mode string) string {
+	directory, err := os.UserConfigDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(directory, "Aeacus Studio", mode+"-recent.json")
+}
+func loadRecentProjects(mode string) []string {
+	path := recentProjectsPath(mode)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return []string{}
+	}
+	var items []string
+	if json.Unmarshal(data, &items) != nil {
+		return []string{}
+	}
+	return items
+}
+func saveRecentProjects(mode string, items []string) {
+	path := recentProjectsPath(mode)
+	if path == "" {
+		return
+	}
+	data, _ := json.Marshal(items)
+	_ = os.MkdirAll(filepath.Dir(path), 0755)
+	_ = atomicWrite(path, data, 0600)
 }
 
 func (s *studioServer) api(next http.HandlerFunc) http.HandlerFunc {
@@ -267,7 +457,7 @@ func (s *studioServer) handleState(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	writeJSON(w, http.StatusOK, map[string]any{"project": s.project, "issues": validateProject(s.project), "mode": s.mode, "targetDir": s.targetDir, "os": runtime.GOOS})
+	writeJSON(w, http.StatusOK, map[string]any{"project": s.project, "issues": validateProject(s.project), "mode": s.mode, "targetDir": s.targetDir, "os": runtime.GOOS, "projectPath": s.projectPath, "recent": s.recent})
 }
 
 func (s *studioServer) handleProject(w http.ResponseWriter, r *http.Request) {
@@ -411,6 +601,18 @@ func (s *studioServer) handleReadmeDownload(w http.ResponseWriter, r *http.Reque
 	content := renderReadmeFragment(s.project)
 	s.mu.RUnlock()
 	download(w, "ReadMe.conf", "text/html; charset=utf-8", []byte(content))
+}
+
+func (s *studioServer) handleReadmePreview(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w)
+		return
+	}
+	s.mu.RLock()
+	content := renderReadmeHTML(s.project)
+	s.mu.RUnlock()
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = io.WriteString(w, content)
 }
 
 func (s *studioServer) handleForensicsDownload(w http.ResponseWriter, r *http.Request) {
@@ -736,6 +938,7 @@ func (s *studioServer) loadProject(path string) error {
 		return err
 	}
 	normalizeProject(&s.project)
+	synchronizeForensicChecks(&s.project)
 	ensureCheckIDs(&s.project.Config)
 	if s.project.Progress == nil {
 		s.project.Progress = map[string]Progress{}

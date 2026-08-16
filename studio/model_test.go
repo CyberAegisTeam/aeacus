@@ -110,8 +110,13 @@ func TestGeneratedContent(t *testing.T) {
 	project.Users = []ImageUser{{Username: "student", Role: "admin", Password: "temporary", Groups: []string{"pigs"}, AddToReadme: true, RemovalPenalty: true, GroupChecks: true}}
 	project.Forensics = []ForensicQuestion{{Title: "FQ1", Parts: []ForensicPart{{Prompt: "Find the value", Answers: []string{"answer one"}, FlexibleWhitespace: true}}}}
 	synchronizeGeneratedChecks(&project)
-	if len(project.Config.Checks) != 3 {
-		t.Fatalf("expected FQ, removal, and group checks; got %d", len(project.Config.Checks))
+	if len(project.Config.Checks) != 2 {
+		t.Fatalf("expected only removal and group checks; FQs must remain standalone; got %d", len(project.Config.Checks))
+	}
+	for _, check := range project.Config.Checks {
+		if strings.HasPrefix(check.ID, "studio-fq-") {
+			t.Fatal("forensic question was added to scoring checks")
+		}
 	}
 	files := generateForensicFiles(&project)
 	if !strings.Contains(files["FQ1.txt"], "ANSWER:") {
@@ -189,5 +194,47 @@ func TestReadmeSanitization(t *testing.T) {
 	output := sanitizeReadmeHTML(input)
 	if strings.Contains(strings.ToLower(output), "script") || strings.Contains(strings.ToLower(output), "onclick") || strings.Contains(strings.ToLower(output), "javascript:") {
 		t.Fatalf("unsafe README HTML survived: %s", output)
+	}
+}
+
+func TestAuthoringExportsStaySeparate(t *testing.T) {
+	project := newProject()
+	project.Config.OS = "Windows 11"
+	project.Config.Checks = []Check{{ID: "manual", Category: "Legacy", Hint: "unused", Message: "Manual check", Points: 100, Pass: []Condition{{Type: "PathExists", Path: `C:\safe`, Hint: "unused"}}}, {ID: "studio-fq-1-1", Message: "Old generated FQ", Points: 5}}
+	project.Forensics = []ForensicQuestion{{Title: "Investigation", Parts: []ForensicPart{{Prompt: "What happened?", Answers: []string{"legacy answer"}}}}}
+	synchronizeGeneratedChecks(&project)
+	if len(project.Config.Checks) != 1 || project.Config.Checks[0].ID != "manual" {
+		t.Fatalf("FQ checks were not removed: %#v", project.Config.Checks)
+	}
+	config, err := renderScoringConfig(project.Config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, unwanted := range []string{"category", "hint", "Old generated FQ", "legacy answer"} {
+		if strings.Contains(config, unwanted) {
+			t.Fatalf("scoring.conf contains %q: %s", unwanted, config)
+		}
+	}
+	files := generateForensicFiles(&project)
+	if !strings.Contains(files["FQ1.txt"], "What happened?") || strings.Contains(files["FQ1.txt"], "legacy answer") {
+		t.Fatalf("unexpected FQ file: %s", files["FQ1.txt"])
+	}
+	readme := renderReadmeHTML(project)
+	for _, heading := range []string{"Unique Identifier", "Forensics Questions", "Competition Scenario", "Competition Guidelines"} {
+		if !strings.Contains(readme, heading) {
+			t.Fatalf("README missing %s", heading)
+		}
+	}
+}
+
+func TestGuidedUserScripts(t *testing.T) {
+	project := newProject()
+	project.Users = []ImageUser{{Username: "normal", Role: "user"}, {Username: "admin", Role: "admin", Password: "SecurePass"}}
+	scripts := generateSetupScripts(project)
+	if !strings.Contains(scripts[0].Content, "'normal':'password'") || !strings.Contains(scripts[0].Content, "usermod -aG sudo 'admin'") {
+		t.Fatalf("Linux wizard script is incomplete: %s", scripts[0].Content)
+	}
+	if !strings.Contains(scripts[1].Content, "-NoPassword") || !strings.Contains(scripts[1].Content, `C:\Users`) || !strings.Contains(scripts[1].Content, "'Desktop'") {
+		t.Fatalf("Windows wizard script is incomplete: %s", scripts[1].Content)
 	}
 }

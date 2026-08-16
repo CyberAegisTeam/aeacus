@@ -232,6 +232,23 @@ func applyCommentCategories(content string, config *ScoringConfig) {
 func renderScoringConfig(config ScoringConfig) (string, error) {
 	copyConfig := config
 	copyConfig.EndDate = ""
+	copyConfig.Checks = append([]Check(nil), config.Checks...)
+	for index := range copyConfig.Checks {
+		copyConfig.Checks[index].Pass = append([]Condition(nil), config.Checks[index].Pass...)
+		copyConfig.Checks[index].PassOverride = append([]Condition(nil), config.Checks[index].PassOverride...)
+		copyConfig.Checks[index].Fail = append([]Condition(nil), config.Checks[index].Fail...)
+		copyConfig.Checks[index].Category = ""
+		copyConfig.Checks[index].Hint = ""
+		for conditionIndex := range copyConfig.Checks[index].Pass {
+			copyConfig.Checks[index].Pass[conditionIndex].Hint = ""
+		}
+		for conditionIndex := range copyConfig.Checks[index].PassOverride {
+			copyConfig.Checks[index].PassOverride[conditionIndex].Hint = ""
+		}
+		for conditionIndex := range copyConfig.Checks[index].Fail {
+			copyConfig.Checks[index].Fail[conditionIndex].Hint = ""
+		}
+	}
 	var output bytes.Buffer
 	if err := toml.NewEncoder(&output).Encode(copyConfig); err != nil {
 		return "", err
