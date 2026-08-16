@@ -663,6 +663,8 @@ func (s *studioServer) handleRegex(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 400, apiError{err.Error()})
 		return
 	}
+	response.Matches, err = evaluateRegexSamples(response.Pattern, request.Samples)
+	if err != nil { writeJSON(w, 400, apiError{err.Error()}); return }
 	writeJSON(w, 200, response)
 }
 

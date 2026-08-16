@@ -21,11 +21,36 @@ type RegexRequest struct {
 	Operator              string   `json:"operator"`
 	Number                int      `json:"number"`
 	Maximum               int      `json:"maximum"`
+	Samples               []string `json:"samples,omitempty"`
 }
 
 type RegexResponse struct {
-	Pattern string   `json:"pattern"`
-	Tests   []string `json:"tests,omitempty"`
+	Pattern string             `json:"pattern"`
+	Tests   []string           `json:"tests,omitempty"`
+	Matches []RegexSampleMatch `json:"matches,omitempty"`
+}
+
+type RegexSampleMatch struct {
+	Line   int      `json:"line"`
+	Text   string   `json:"text"`
+	Ranges [][2]int `json:"ranges"`
+}
+
+func evaluateRegexSamples(pattern string, samples []string) ([]RegexSampleMatch, error) {
+	expression, err := regexp.Compile(pattern)
+	if err != nil {
+		return nil, err
+	}
+	results := make([]RegexSampleMatch, 0, len(samples))
+	for line, sample := range samples {
+		indexes := expression.FindAllStringIndex(sample, -1)
+		ranges := make([][2]int, 0, len(indexes))
+		for _, index := range indexes {
+			ranges = append(ranges, [2]int{index[0], index[1]})
+		}
+		results = append(results, RegexSampleMatch{Line: line + 1, Text: sample, Ranges: ranges})
+	}
+	return results, nil
 }
 
 func buildRegex(request RegexRequest) (RegexResponse, error) {
@@ -44,9 +69,9 @@ func buildRegex(request RegexRequest) (RegexResponse, error) {
 	escapeText := func(value string) string {
 		value = regexp.QuoteMeta(value)
 		if request.SpacesUnderscoresSame {
-			value = strings.ReplaceAll(value, `\ `, `[_[:space:]]+`)
+			value = strings.ReplaceAll(value, ` `, `[_[:space:]]+`)
 		} else if request.FlexibleWhitespace {
-			value = strings.ReplaceAll(value, `\ `, `[[:space:]]+`)
+			value = strings.ReplaceAll(value, ` `, `[[:space:]]+`)
 		}
 		return value
 	}

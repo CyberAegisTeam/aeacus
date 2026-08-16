@@ -104,6 +104,44 @@ func TestSettingRegexSeparators(t *testing.T) {
 	}
 }
 
+func TestRegexPreviewUsesAeacusEngine(t *testing.T) {
+	contains, err := buildRegex(RegexRequest{Mode: "contains", Values: []string{"nullok"}, WholeLine: false, CaseSensitive: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	matches, err := evaluateRegexSamples(contains.Pattern, []string{"asdasd nullok asd"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(matches[0].Ranges) != 1 {
+		t.Fatalf("contains preview did not match: %#v", matches)
+	}
+	whole, err := buildRegex(RegexRequest{Mode: "contains", Values: []string{"nullok"}, WholeLine: true, CaseSensitive: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	matches, _ = evaluateRegexSamples(whole.Pattern, []string{"asdasd nullok asd"})
+	if len(matches[0].Ranges) != 0 {
+		t.Fatalf("whole-line preview matched extra content: %#v", matches)
+	}
+	spaces, err := buildRegex(RegexRequest{Mode: "exact", Values: []string{"nullok is ok"}, WholeLine: true, FlexibleWhitespace: true, CaseSensitive: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	matches, _ = evaluateRegexSamples(spaces.Pattern, []string{"nullok      is ok"})
+	if len(matches[0].Ranges) != 1 {
+		t.Fatalf("flexible whitespace preview did not match: %q %#v", spaces.Pattern, matches)
+	}
+	underscores, err := buildRegex(RegexRequest{Mode: "exact", Values: []string{"nullok is ok"}, WholeLine: true, FlexibleWhitespace: true, SpacesUnderscoresSame: true, CaseSensitive: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	matches, _ = evaluateRegexSamples(underscores.Pattern, []string{"nullok_is_ok"})
+	if len(matches[0].Ranges) != 1 {
+		t.Fatalf("underscore preview did not match: %q %#v", underscores.Pattern, matches)
+	}
+}
+
 func TestGeneratedContent(t *testing.T) {
 	project := newProject()
 	project.Config.Name, project.Config.Title, project.Config.OS, project.Config.User, project.Config.Password = "Linux_PR6", "PR6", "Linux Mint", "red", "secret"
