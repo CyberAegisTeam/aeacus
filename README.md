@@ -4,6 +4,21 @@
 
 `aeacus` is a vulnerability scoring engine for Windows and Linux, with an emphasis on simplicity.
 
+## Aeacus Studio 3.0.0
+
+Aeacus 3.0.0 adds **Studio Personal** for cross-platform image planning and **Studio Development** for on-image implementation, live check testing, and release. The participant-facing Phocus, README, Scoring Report, Team ID, and desktop workflow remain compatible with the established Aeacus experience.
+
+Both Studio editions are packaged desktop applications. They run in native operating-system windows and do not launch a local browser interface. Official Windows, macOS DMG/ZIP, and Linux packages are built by the **Build Aeacus Studio 3.0.0** GitHub Actions workflow from one matched encryption-key set.
+
+Build and usage instructions are in [the Aeacus 3.0.0 release guide](docs/AEACUS_3_RELEASE_GUIDE.md).
+
+Create matched release artifacts with:
+
+```bash
+make test-v3
+make release-v3
+```
+
 ## V2
 
 `aeacus` has recently been updated to version 2.0.0! To view the breaking changes, refer to [./docs/v2.md](./docs/v2.md).

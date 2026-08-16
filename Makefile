@@ -1,4 +1,18 @@
 .DEFAULT_GOAL := all
+
+.PHONY: release-v3 test-v3
+
+release-v3:
+	sh scripts/build-release-v3.sh
+
+test-v3:
+	go test ./...
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /tmp/aeacus-linux .
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags phocus -o /tmp/phocus-linux .
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o /tmp/aeacus-windows.exe .
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags phocus -o /tmp/phocus-windows.exe .
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags desktop,production -ldflags '-H windowsgui -X main.defaultMode=personal' -o /tmp/aeacus-studio-windows.exe ./studio
+	@if [ "$$(uname -s)" = "Darwin" ]; then CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -tags desktop,production -ldflags '-X main.defaultMode=personal -extldflags "-framework UniformTypeIdentifiers"' -o /tmp/aeacus-studio-macos ./studio; fi
 .SILENT: release-lin release-win release
 
 all:

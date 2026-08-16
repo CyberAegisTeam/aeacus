@@ -42,6 +42,9 @@ func ask(p ...interface{}) bool {
 }
 
 func pass(p ...interface{}) {
+	if quietEnabled {
+		return
+	}
 	toPrint := fmt.Sprintln(p...)
 	var printStr string
 	if checkCount != 0 {
@@ -53,6 +56,9 @@ func pass(p ...interface{}) {
 }
 
 func fail(p ...interface{}) {
+	if quietEnabled {
+		return
+	}
 	toPrint := fmt.Sprintln(p...)
 	var printStr string
 	if checkCount != 0 {
@@ -64,6 +70,9 @@ func fail(p ...interface{}) {
 }
 
 func warn(p ...interface{}) {
+	if quietEnabled {
+		return
+	}
 	toPrint := fmt.Sprintln(p...)
 	var printStr string
 	if checkCount != 0 {
@@ -75,6 +84,9 @@ func warn(p ...interface{}) {
 }
 
 func debug(p ...interface{}) {
+	if quietEnabled {
+		return
+	}
 	// Function inlining and dead code elimination means that debug calls
 	// (and their strings) will be optimized out on phocus builds, with any
 	// recent Go compiler.
@@ -96,6 +108,9 @@ func debug(p ...interface{}) {
 }
 
 func info(p ...interface{}) {
+	if quietEnabled {
+		return
+	}
 	if verboseEnabled {
 		toPrint := fmt.Sprintln(p...)
 		var printStr string
@@ -109,17 +124,26 @@ func info(p ...interface{}) {
 }
 
 func blue(head string, p ...interface{}) {
+	if quietEnabled {
+		return
+	}
 	toPrint := fmt.Sprintln(p...)
 	printStr := printer(color.FgCyan, head, toPrint)
 	fmt.Print(printStr)
 }
 
 func red(head string, p ...interface{}) {
+	if quietEnabled {
+		return
+	}
 	toPrint := fmt.Sprintln(p...)
 	fmt.Print(printer(color.FgRed, head, toPrint))
 }
 
 func green(head string, p ...interface{}) {
+	if quietEnabled {
+		return
+	}
 	toPrint := fmt.Sprintln(p...)
 	fmt.Print(printer(color.FgGreen, head, toPrint))
 }
@@ -127,7 +151,7 @@ func green(head string, p ...interface{}) {
 func printer(colorChosen color.Attribute, messageType, toPrint string) string {
 	printer := color.New(colorChosen, color.Bold)
 	printStr := "["
-	printStr += printer.Sprintf(messageType)
+	printStr += printer.Sprintf("%s", messageType)
 	printStr += fmt.Sprintf("] %s", toPrint)
 	return printStr
 }

@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Aeacus Studio</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/overrides.css">
+</head>
+<body>
+  <script>window.AEACUS_BOOTSTRAP=__STUDIO_BOOTSTRAP__;</script>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark"><img src="/logo.png" alt=""></span><div><strong>Aeacus Studio</strong><small id="edition"></small></div></div>
+    <div class="project-title"><input id="projectName" aria-label="Project name" value="Untitled Aeacus Image"><span id="saveState">Saved locally</span></div>
+    <div class="top-actions">
+      <button class="button subtle" id="newProject">New</button>
+      <label class="button subtle file-button">Import project<input id="projectImport" type="file" accept=".aeacus,application/json"></label>
+      <button class="button subtle" id="downloadProject">Save project</button>
+      <button class="button primary" id="saveProject">Validate</button>
+    </div>
+  </header>
+
+  <div class="shell">
+    <nav class="sidebar" aria-label="Studio sections">
+      <button class="nav active" data-page="overview">Overview</button>
+      <button class="nav" data-page="config">Scoring Config</button>
+      <button class="nav" data-page="regex">Regex Builder</button>
+      <button class="nav" data-page="readme">README Builder</button>
+      <button class="nav" data-page="forensics">Forensics</button>
+      <button class="nav" data-page="users">Users & Scripts</button>
+      <button class="nav dev-only" data-page="implementation">Implementation</button>
+      <button class="nav dev-only" data-page="release">Release</button>
+      <div class="sidebar-footer"><span id="modeBadge"></span><small>Version <span id="version"></span></small></div>
+    </nav>
+
+    <main>
+      <section class="page active" id="page-overview">
+        <div class="page-heading"><div><p class="eyebrow">IMAGE PROJECT</p><h1 id="overviewTitle">Untitled Aeacus Image</h1><p>Plan, validate, implement, and release an Aeacus image.</p></div></div>
+        <div class="metric-grid">
+          <article class="metric"><span>Vulnerabilities</span><strong id="metricChecks">0</strong></article>
+          <article class="metric"><span>Positive points</span><strong id="metricPoints">0</strong></article>
+          <article class="metric"><span>Forensic questions</span><strong id="metricFQs">0</strong></article>
+          <article class="metric"><span>Validation</span><strong id="metricValidation">Ready</strong></article>
+        </div>
+        <div class="two-column">
+          <article class="panel"><div class="panel-heading"><h2>Project health</h2><button class="text-button" id="refreshValidation">Refresh</button></div><div id="issues" class="issues"></div></article>
+          <article class="panel"><h2>Workflow</h2><ol class="workflow"><li><b>Plan</b><span>Configure the image, users, README, and questions.</span></li><li><b>Build</b><span>Create vulnerabilities with visual conditions and regex.</span></li><li><b>Implement</b><span>Import into Development Studio on the VM.</span></li><li><b>Release</b><span>Require a zero score, clean the image, and install Phocus.</span></li></ol></article>
+        </div>
+      </section>
+
+      <section class="page" id="page-config">
+        <div class="page-heading"><div><p class="eyebrow">SCORING</p><h1>Scoring configuration</h1><p>Edit image settings and vulnerabilities while the generated TOML updates beside you.</p></div><div><label class="button subtle file-button">Import scoring.conf<input id="configImport" type="file" accept=".conf,.toml,text/plain"></label> <button class="button subtle" id="downloadConfig">Download scoring.conf</button> <button class="button primary" id="downloadScoringData">Generate scoring.dat</button></div></div>
+        <div class="split-editor">
+          <div class="editor-pane">
+            <article class="panel form-grid" id="configFields">
+              <label>Image name<input data-config="name"></label><label>Round title<input data-config="title"></label>
+              <label>Operating system<input data-config="os" placeholder="Linux Mint 22 or Windows 11"></label><label>Main user<input data-config="user"></label>
+              <label>Timezone<input data-config="timezone"></label><label>Aeacus version<input data-config="version"></label>
+              <label class="wide">Scoring server<input data-config="remote"></label><label class="wide">Scoring password<input type="password" data-config="password"><button type="button" class="reveal" id="revealPassword">Show</button></label>
+              <label class="check-label"><input type="checkbox" data-config="local"> Allow local scoring</label>
+            </article>
+            <div class="section-bar"><div><h2>Vulnerabilities</h2><span id="checkSummary"></span></div><button class="button primary" id="addCheck">Add vulnerability</button></div>
+            <div id="checkList" class="check-list"></div>
+          </div>
+          <div class="source-pane"><div class="source-heading"><span>Generated scoring.conf</span><button class="text-button" id="copyToml">Copy</button></div><textarea id="tomlPreview" spellcheck="false" readonly></textarea></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-regex">
+        <div class="page-heading"><div><p class="eyebrow">PATTERN DESIGNER</p><h1>Build a matching rule</h1><p>Describe what a valid line looks like. The Aeacus pattern and test results update while you type.</p></div></div>
+        <div class="recipe-switcher" aria-label="Pattern recipe"><button class="recipe active" data-regex-mode="setting"><b>Setting</b><span>Match key/value configuration</span></button><button class="recipe" data-regex-mode="exact"><b>Exact line</b><span>Allow one or more complete values</span></button><button class="recipe" data-regex-mode="contains"><b>Contains</b><span>Find text anywhere in a line</span></button><button class="recipe" data-regex-mode="integer"><b>Number</b><span>Compare values or ranges</span></button></div>
+        <div class="two-column regex-layout">
+          <article class="panel form-grid" id="regexForm">
+            <label>Pattern behavior<select id="regexMode"><option value="setting">Configuration key equals value</option><option value="exact">Exact text</option><option value="contains">Contains text</option><option value="starts">Starts with text</option><option value="ends">Ends with text</option><option value="integer">Numeric comparison</option></select></label>
+            <label class="regex-key">Setting name<input id="regexKey" placeholder="Example: PermitRootLogin"></label>
+            <label class="regex-key">Between name and value<select id="regexSeparator"><option value="equals">Equals sign: name = value</option><option value="whitespace">Whitespace: name value</option><option value="colon">Colon: name: value</option><option value="either">Accept equals, colon, or whitespace</option></select></label>
+            <label class="wide regex-values">Accepted value(s)<textarea id="regexValues" placeholder="Enter one accepted value per line">no</textarea><small>Multiple lines mean any of those values will be accepted.</small></label>
+            <label class="numeric-field hidden">Comparison<select id="regexOperator"><option>&gt;</option><option>&gt;=</option><option>&lt;</option><option>&lt;=</option><option>=</option><option value="between">Between</option></select></label>
+            <label class="numeric-field hidden">Number<input id="regexNumber" type="number" value="1" min="0"></label>
+            <label class="numeric-field hidden">Maximum<input id="regexMaximum" type="number" value="10" min="0"></label>
+            <label class="check-label"><input id="regexCase" type="checkbox"> Case sensitive</label>
+            <label class="check-label"><input id="regexWhitespace" type="checkbox" checked> Flexible whitespace</label>
+            <label class="check-label"><input id="regexUnderscore" type="checkbox" checked> Spaces and underscores equivalent</label>
+            <label class="check-label"><input id="regexWhole" type="checkbox" checked> Match whole line</label>
+          </article>
+          <article class="panel regex-result"><div class="panel-heading"><div><p class="eyebrow">LIVE OUTPUT</p><h2>Generated Aeacus pattern</h2></div><button class="button subtle" id="copyRegex">Copy pattern</button></div><pre id="regexOutput">Start typing to build a pattern.</pre><p class="pattern-explanation">No generate button—this updates automatically.</p><h3>Test real configuration lines</h3><textarea id="regexSamples" placeholder="Paste example lines here. Each line is evaluated immediately."></textarea><div id="regexMatches"></div><div id="numericTests"></div></article>
+        </div>
+      </section>
+
+      <section class="page" id="page-readme">
+        <div class="page-heading"><div><p class="eyebrow">PARTICIPANT CONTENT</p><h1>README builder</h1><p>Format the image scenario and preview what participants will receive.</p></div><button class="button subtle" id="downloadReadme">Download ReadMe.conf</button></div>
+        <div class="readme-layout">
+          <div><div class="format-toolbar"><button data-command="formatBlock" data-value="p">Paragraph</button><button data-command="formatBlock" data-value="h2">Heading</button><span></span><button data-command="bold"><b>B</b></button><button data-command="italic"><i>I</i></button><button data-command="underline"><u>U</u></button><button data-command="insertUnorderedList">Bullets</button><button data-command="insertOrderedList">Numbers</button><button id="insertLink">Link</button><button id="insertTable">Table</button><button id="restoreReadme">Reset</button></div><div id="readmeEditor" class="rich-editor" contenteditable="true" data-placeholder="Write the image-specific scenario, critical services, and authorized-user notes…"></div></div>
+          <div class="readme-preview"><div class="preview-label"><span>Released-image preview</span><small>This uses the same background, logo, page width, typography, and standard sections as Aeacus.</small></div><div id="readmePreview"></div></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-forensics">
+        <div class="page-heading"><div><p class="eyebrow">FORENSICS</p><h1>Forensic question builder</h1><p>Create formatted FQ files and matching scoring checks.</p></div><button class="button primary" id="addFQ">Add question</button></div>
+        <div id="fqList" class="stack"></div>
+        <article class="panel"><div class="panel-heading"><h2>Generated files</h2><button class="text-button" id="refreshFQs">Refresh</button></div><div id="fqPreview" class="file-previews"></div></article>
+      </section>
+
+      <section class="page" id="page-users">
+        <div class="page-heading"><div><p class="eyebrow">IMAGE SETUP</p><h1>Users and setup scripts</h1><p>Maintain the authorized-user list and generate safe Windows and Linux setup scripts.</p></div><div><button class="button subtle" id="generatePasswords">Generate missing passwords</button> <button class="button subtle" id="downloadCredentials">Credential sheet</button> <button class="button primary" id="addUser">Add user</button></div></div>
+        <article class="panel import-card"><div class="import-icon">CSV</div><div><h2>Import an authorized-user list</h2><p>Choose a CSV with headers such as <strong>username</strong>, <strong>fullName</strong>, <strong>role</strong>, <strong>password</strong>, and <strong>groups</strong>. You can review every user before generating scripts.</p></div><label class="button subtle file-button">Choose CSV<input id="usersCSV" type="file" accept=".csv,text/csv"></label></article>
+        <div id="userList" class="stack"></div>
+        <div class="section-bar"><div><h2>Generated scripts</h2><span>Review every command before running it.</span></div><button class="button subtle" id="generateScripts">Regenerate scripts</button></div>
+        <div id="scriptList" class="script-grid"></div>
+      </section>
+
+      <section class="page dev-only" id="page-implementation">
+        <div class="page-heading"><div><p class="eyebrow">ON-IMAGE DEVELOPMENT</p><h1>Implementation dashboard</h1><p>Install the project and watch checks change as you intentionally configure the image.</p></div><button class="button primary" id="evaluateNow">Evaluate now</button></div>
+        <article class="panel dev-controls"><label>Aeacus directory<input id="targetDir"></label><button class="button subtle" id="initializeImage">Initialize image</button><button class="button subtle" id="installProject">Install project files</button><span id="devMessage"></span></article>
+        <article class="panel audio-panel"><div><h2>Custom scoring sounds</h2><p>Optional WAV files played when participants gain or lose points.</p></div><label class="button subtle file-button">Choose gain sound<input id="gainAudio" type="file" accept=".wav,audio/wav"></label><span id="gainAudioName">Default gain.wav</span><label class="button subtle file-button">Choose loss sound<input id="lossAudio" type="file" accept=".wav,audio/wav"></label><span id="lossAudioName">Default alarm.wav</span></article>
+        <div class="implementation-summary"><span>Current score <strong id="liveScore">—</strong></span><span>Passing <strong id="livePassing">—</strong></span><span>Failing <strong id="liveFailing">—</strong></span><span>Test coverage <strong id="testCoverage">0%</strong></span><label>Auto refresh<select id="autoRefresh"><option value="0">Off</option><option value="5">5 seconds</option><option value="10">10 seconds</option><option value="30">30 seconds</option></select></label></div>
+        <div class="implementation-toolbar"><input id="implementationSearch" type="search" placeholder="Search vulnerabilities, categories, or check IDs…"><span>Passing and failing observations are recorded automatically.</span></div>
+        <div id="implementationList" class="implementation-list"></div>
+      </section>
+
+      <section class="page dev-only" id="page-release">
+        <div class="page-heading"><div><p class="eyebrow">FINALIZATION</p><h1>Release image</h1><p>Run the existing Aeacus release workflow and remove Development Studio.</p></div></div>
+        <article class="release-card"><div class="release-icon">✓</div><div><h2>Release requirements</h2><ul><li>The current score must be exactly <strong>0</strong>.</li><li>The configuration must have no validation errors.</li><li>Untested vulnerabilities produce a confirmation warning.</li><li>The normal Aeacus platform cleanup will run.</li><li>Development Studio and plaintext author files will be removed.</li></ul><label class="confirm-box"><input id="cleanupConfirm" type="checkbox"> Automatically accept the existing optional cleanup prompts</label><button class="button danger" id="releaseImage">Validate and release image</button><pre id="releaseOutput"></pre></div></article>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" role="status"></div>
+  <dialog id="confirmDialog"><form method="dialog"><h2 id="dialogTitle">Confirm</h2><div id="dialogBody"></div><div class="dialog-actions"><button value="cancel" class="button subtle">Cancel</button><button value="confirm" class="button danger">Continue</button></div></form></dialog>
+  <dialog id="checkTemplateDialog" class="template-dialog"><div class="dialog-heading"><div><p class="eyebrow">NEW VULNERABILITY</p><h2>What should Aeacus verify?</h2><p>Choose a starting point. Every generated field remains editable.</p></div><button class="icon-button" data-close-template>×</button></div><div class="template-grid"><button data-check-template="file"><b>File setting</b><span>Match required text or a configuration value.</span></button><button data-check-template="path"><b>File or directory</b><span>Verify that a path exists or has been removed.</span></button><button data-check-template="command"><b>Command result</b><span>Run a command and evaluate its success or output.</span></button><button data-check-template="user"><b>User or group</b><span>Verify accounts, removal, passwords, or membership.</span></button><button data-check-template="service"><b>Service or software</b><span>Check service state, packages, or versions.</span></button><button data-check-template="custom"><b>Start blank</b><span>Select any supported Aeacus condition.</span></button></div></dialog>
+  <script src="/app.js"></script>
+</body>
+</html>

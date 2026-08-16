@@ -1,0 +1,166 @@
+name: Build Aeacus Studio 3.0.0
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - v3.0.0
+
+permissions:
+  contents: write
+
+jobs:
+  crypto:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate one matched release key set
+        run: sh misc/dev/gen-crypto.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: matched-crypto
+          include-hidden-files: true
+          retention-days: 1
+          path: |
+            crypto.go
+            studio/crypto.go
+
+  macos:
+    needs: crypto
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+          cache: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: matched-crypto
+          path: .
+      - name: Build native macOS application
+        run: |
+          app='release/Aeacus Studio Personal.app'
+          mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+          cp packaging/macos/Info.plist "$app/Contents/Info.plist"
+          cp packaging/macos/AeacusStudio.icns "$app/Contents/Resources/AeacusStudio.icns"
+          CGO_ENABLED=1 GOARCH=arm64 go build -trimpath -tags desktop,production -ldflags "-s -w -X main.defaultMode=personal -extldflags '-framework UniformTypeIdentifiers'" -o "$app/Contents/MacOS/aeacus-studio-personal" ./studio
+          codesign --force --deep --sign - --timestamp=none "$app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          ditto -c -k --sequesterRsrc --keepParent "$app" release/Aeacus-Studio-Personal-macOS.zip
+          mkdir release/dmg
+          cp -R "$app" release/dmg/
+          ln -s /Applications release/dmg/Applications
+          hdiutil create -quiet -volname 'Aeacus Studio Personal' -srcfolder release/dmg -ov -format UDZO release/Aeacus-Studio-Personal-macOS.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-release
+          path: |
+            release/Aeacus-Studio-Personal-macOS.zip
+            release/Aeacus-Studio-Personal-macOS.dmg
+
+  windows:
+    needs: crypto
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+          cache: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: matched-crypto
+          path: .
+      - name: Build native Windows applications
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release, release/development/windows | Out-Null
+          go build -trimpath -tags desktop,production -ldflags '-s -w -H windowsgui -X main.defaultMode=personal' -o release/Aeacus-Studio-Personal-Windows.exe ./studio
+          go build -trimpath -tags desktop,production -ldflags '-s -w -H windowsgui -X main.defaultMode=development' -o release/development/windows/Aeacus-Studio-Development.exe ./studio
+          go build -trimpath -ldflags '-s -w' -o release/development/windows/aeacus.exe .
+          go build -trimpath -tags phocus -ldflags '-s -w' -o release/development/windows/phocus.exe .
+          Copy-Item -Recurse assets,misc release/development/windows/
+          Set-Content release/development/windows/.aeacus-development-bundle 'AEACUS_STUDIO_DEVELOPMENT_BUNDLE_V3'
+          Compress-Archive -Path release/development/windows -DestinationPath release/Aeacus-Studio-Development-Windows.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          include-hidden-files: true
+          path: |
+            release/Aeacus-Studio-Personal-Windows.exe
+            release/Aeacus-Studio-Development-Windows.zip
+
+  linux:
+    needs: crypto
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+          cache: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: matched-crypto
+          path: .
+      - name: Install native Linux webview development files
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+      - name: Build native Linux applications
+        run: |
+          mkdir -p release/personal-linux release/development/linux
+          CGO_ENABLED=1 go build -trimpath -tags desktop,production,webkit2_41 -ldflags '-s -w -X main.defaultMode=personal' -o release/personal-linux/aeacus-studio-personal ./studio
+          cp assets/img/logo.png release/personal-linux/aeacus-studio.png
+          CGO_ENABLED=1 go build -trimpath -tags desktop,production,webkit2_41 -ldflags '-s -w -X main.defaultMode=development' -o release/development/linux/aeacus-studio-development ./studio
+          CGO_ENABLED=0 go build -trimpath -ldflags '-s -w' -o release/development/linux/aeacus .
+          CGO_ENABLED=0 go build -trimpath -tags phocus -ldflags '-s -w' -o release/development/linux/phocus .
+          cp -R assets misc release/development/linux/
+          printf '%s\n' AEACUS_STUDIO_DEVELOPMENT_BUNDLE_V3 > release/development/linux/.aeacus-development-bundle
+          tar -C release -czf release/Aeacus-Studio-Personal-Linux-amd64.tar.gz personal-linux
+          tar -C release/development -czf release/Aeacus-Studio-Development-Linux.tar.gz linux
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-release
+          include-hidden-files: true
+          path: |
+            release/Aeacus-Studio-Personal-Linux-amd64.tar.gz
+            release/Aeacus-Studio-Development-Linux.tar.gz
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [macos, windows, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: '*-release'
+          path: release-assets
+          merge-multiple: true
+      - name: Remove binaries from the previous 3.0.0 build
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              const release = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: 'v3.0.0'
+              });
+              for (const asset of release.data.assets) {
+                await github.rest.repos.deleteReleaseAsset({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  asset_id: asset.id
+                });
+              }
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+      - name: Generate release checksums
+        run: (cd release-assets && sha256sum * > SHA256SUMS.txt)
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v3.0.0
+          name: Aeacus Studio 3.0.0
+          overwrite_files: true
+          files: release-assets/*

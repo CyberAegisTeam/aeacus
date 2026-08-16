@@ -13,3 +13,5 @@ tags
 *.zip
 *.exe
 .keys
+.DS_Store
+dist/

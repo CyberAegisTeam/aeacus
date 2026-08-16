@@ -232,7 +232,7 @@ func genReadMe() {
 	var err error
 	readMeFiles := []string{"ReadMe.conf", "README.conf", "readme.conf"}
 	for _, readme := range readMeFiles {
-		userReadMe, err = readFile(readme)
+		userReadMe, err = readFile(dirPath + readme)
 		if err == nil {
 			break
 		}

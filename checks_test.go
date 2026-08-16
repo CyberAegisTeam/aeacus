@@ -63,6 +63,7 @@ func TestDirContains(t *testing.T) {
 	c := cond{
 		Path:  "misc/tests/dir",
 		Value: "^efgh",
+		regex: true,
 	}
 	out, err := c.DirContains()
 	if err != nil || out != true {
@@ -99,6 +100,7 @@ func TestFileContains(t *testing.T) {
 	c := cond{
 		Path:  "misc/tests/TestFileContains.txt",
 		Value: "^hello",
+		regex: true,
 	}
 	out, err := c.FileContains()
 	if err != nil || out != true {

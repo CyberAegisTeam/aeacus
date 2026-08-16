@@ -70,6 +70,32 @@ func main() {
 		},
 		Commands: []*cli.Command{
 			{
+				Name:   "studio-evaluate",
+				Usage:  "Evaluate scoring.conf and emit author-only JSON for Development Studio",
+				Hidden: true,
+				Action: func(c *cli.Context) error {
+					permsCheck()
+					return studioEvaluate()
+				},
+			},
+			{
+				Name:   "studio-release",
+				Usage:  "Require a zero score, then perform the normal image release",
+				Hidden: true,
+				Action: func(c *cli.Context) error {
+					permsCheck()
+					return studioRelease()
+				},
+			},
+			{
+				Name:   "studio-verify-data",
+				Usage:  "Verify a Studio-generated scoring.dat with this Aeacus build",
+				Hidden: true,
+				Action: func(c *cli.Context) error {
+					return studioVerifyData(c.Args().First())
+				},
+			},
+			{
 				Name:    "score",
 				Aliases: []string{"s"},
 				Usage:   "Score image with current scoring config",

@@ -10,13 +10,14 @@ import (
 )
 
 const (
-	version = "2.1.1"
+	version = "3.0.0"
 )
 
 var (
 	yesEnabled     bool
 	verboseEnabled bool
 	debugEnabled   bool
+	quietEnabled   bool
 	dirPath        string
 	scoringConf    = "scoring.conf"
 	scoringData    = "scoring.dat"
