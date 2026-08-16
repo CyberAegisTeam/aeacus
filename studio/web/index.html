@@ -61,6 +61,7 @@
               <label class="check-label"><input type="checkbox" data-config="local"> Allow local scoring</label>
             </article>
             <div class="section-bar"><div><h2>Vulnerabilities</h2><span id="checkSummary"></span></div><button class="button primary" id="addCheck">Add vulnerability</button></div>
+            <div class="vulnerability-toolbar"><input id="checkSearch" type="search" placeholder="Search vulnerabilities, categories, or IDs"><select id="checkFilter" aria-label="Filter vulnerabilities"><option value="all">All vulnerabilities</option><option value="positive">Positive points</option><option value="negative">Penalties</option><option value="unconfigured">Needs configuration</option></select></div>
             <div id="checkList" class="check-list"></div>
           </div>
           <div class="source-pane"><div class="source-heading"><span>Generated scoring.conf</span><button class="text-button" id="copyToml">Copy</button></div><textarea id="tomlPreview" spellcheck="false" readonly></textarea></div>
@@ -68,23 +69,25 @@
       </section>
 
       <section class="page" id="page-regex">
-        <div class="page-heading"><div><p class="eyebrow">PATTERN DESIGNER</p><h1>Build a matching rule</h1><p>Describe what a valid line looks like. The Aeacus pattern and test results update while you type.</p></div></div>
-        <div class="recipe-switcher" aria-label="Pattern recipe"><button class="recipe active" data-regex-mode="setting"><b>Setting</b><span>Match key/value configuration</span></button><button class="recipe" data-regex-mode="exact"><b>Exact line</b><span>Allow one or more complete values</span></button><button class="recipe" data-regex-mode="contains"><b>Contains</b><span>Find text anywhere in a line</span></button><button class="recipe" data-regex-mode="integer"><b>Number</b><span>Compare values or ranges</span></button></div>
-        <div class="two-column regex-layout">
-          <article class="panel form-grid" id="regexForm">
-            <label>Pattern behavior<select id="regexMode"><option value="setting">Configuration key equals value</option><option value="exact">Exact text</option><option value="contains">Contains text</option><option value="starts">Starts with text</option><option value="ends">Ends with text</option><option value="integer">Numeric comparison</option></select></label>
-            <label class="regex-key">Setting name<input id="regexKey" placeholder="Example: PermitRootLogin"></label>
-            <label class="regex-key">Between name and value<select id="regexSeparator"><option value="equals">Equals sign: name = value</option><option value="whitespace">Whitespace: name value</option><option value="colon">Colon: name: value</option><option value="either">Accept equals, colon, or whitespace</option></select></label>
-            <label class="wide regex-values">Accepted value(s)<textarea id="regexValues" placeholder="Enter one accepted value per line">no</textarea><small>Multiple lines mean any of those values will be accepted.</small></label>
-            <label class="numeric-field hidden">Comparison<select id="regexOperator"><option>&gt;</option><option>&gt;=</option><option>&lt;</option><option>&lt;=</option><option>=</option><option value="between">Between</option></select></label>
-            <label class="numeric-field hidden">Number<input id="regexNumber" type="number" value="1" min="0"></label>
-            <label class="numeric-field hidden">Maximum<input id="regexMaximum" type="number" value="10" min="0"></label>
-            <label class="check-label"><input id="regexCase" type="checkbox"> Case sensitive</label>
-            <label class="check-label"><input id="regexWhitespace" type="checkbox" checked> Flexible whitespace</label>
-            <label class="check-label"><input id="regexUnderscore" type="checkbox" checked> Spaces and underscores equivalent</label>
-            <label class="check-label"><input id="regexWhole" type="checkbox" checked> Match whole line</label>
-          </article>
-          <article class="panel regex-result"><div class="panel-heading"><div><p class="eyebrow">LIVE OUTPUT</p><h2>Generated Aeacus pattern</h2></div><button class="button subtle" id="copyRegex">Copy pattern</button></div><pre id="regexOutput">Start typing to build a pattern.</pre><p class="pattern-explanation">No generate button—this updates automatically.</p><h3>Test real configuration lines</h3><textarea id="regexSamples" placeholder="Paste example lines here. Each line is evaluated immediately."></textarea><div id="regexMatches"></div><div id="numericTests"></div></article>
+        <div class="page-heading compact-heading"><div><p class="eyebrow">PATTERN WORKBENCH</p><h1>Regular expression editor</h1><p>Build an Aeacus-safe expression and verify it against real configuration text as you type.</p></div></div>
+        <div class="regex-workbench">
+          <div class="regex-pattern-bar"><span class="regex-delimiter">/</span><code id="regexOutput">Start typing to build a pattern.</code><span class="regex-delimiter">/</span><span id="regexFlags">g</span><button class="button subtle" id="copyRegex">Copy</button></div>
+          <div class="regex-workspace">
+            <section class="regex-test-pane"><div class="workspace-heading"><div><strong>Test string</strong><span>One configuration line per row</span></div><span id="regexMatchCount">0 matches</span></div><div class="test-editor"><div id="regexLineNumbers" class="line-numbers">1</div><textarea id="regexSamples" spellcheck="false" placeholder="Paste configuration lines here…"></textarea></div><div id="regexMatches" class="match-results"></div></section>
+            <aside class="regex-inspector" id="regexForm">
+              <div class="inspector-tabs"><button class="active" data-regex-tab="builder">Builder</button><button data-regex-tab="options">Options</button><button data-regex-tab="help">Reference</button></div>
+              <div class="inspector-page active" data-regex-panel="builder">
+                <label>Rule type<select id="regexMode"><option value="setting">Configuration setting</option><option value="exact">Exact line</option><option value="contains">Contains text</option><option value="starts">Starts with text</option><option value="ends">Ends with text</option><option value="integer">Numeric comparison</option></select></label>
+                <label class="regex-key">Setting name<input id="regexKey" placeholder="PermitRootLogin"></label>
+                <label class="regex-key">Separator<select id="regexSeparator"><option value="equals">Equals sign (=)</option><option value="whitespace">Whitespace</option><option value="colon">Colon (:)</option><option value="either">Equals, colon, or whitespace</option></select></label>
+                <label class="regex-values">Accepted values<textarea id="regexValues" placeholder="One accepted value per line">no</textarea><small>Each line is an allowed alternative.</small></label>
+                <div class="numeric-field hidden numeric-row"><label>Comparison<select id="regexOperator"><option>&gt;</option><option>&gt;=</option><option>&lt;</option><option>&lt;=</option><option>=</option><option value="between">Between</option></select></label><label>Value<input id="regexNumber" type="number" value="1" min="0"></label><label>Maximum<input id="regexMaximum" type="number" value="10" min="0"></label></div>
+                <div id="numericTests" class="numeric-tests"></div>
+              </div>
+              <div class="inspector-page" data-regex-panel="options"><label class="switch-row"><span><b>Case sensitive</b><small>Uppercase and lowercase must match</small></span><input id="regexCase" type="checkbox"></label><label class="switch-row"><span><b>Flexible whitespace</b><small>Accept tabs or multiple spaces</small></span><input id="regexWhitespace" type="checkbox" checked></label><label class="switch-row"><span><b>Spaces equal underscores</b><small>Treat spaces and underscores the same</small></span><input id="regexUnderscore" type="checkbox" checked></label><label class="switch-row"><span><b>Whole line</b><small>Reject extra content before or after</small></span><input id="regexWhole" type="checkbox" checked></label></div>
+              <div class="inspector-page regex-reference" data-regex-panel="help"><h3>Live builder</h3><p>Choose a rule type and enter ordinary values. Studio escapes special characters and generates the expression immediately.</p><dl><dt>Setting</dt><dd>Matches a key/value line such as <code>PermitRootLogin no</code>.</dd><dt>Alternatives</dt><dd>Put each accepted value on its own line.</dd><dt>Numeric</dt><dd>Build safe integer comparisons without hand-writing ranges.</dd></dl></div>
+            </aside>
+          </div>
         </div>
       </section>
 
@@ -129,6 +132,7 @@
   <div id="toast" role="status"></div>
   <dialog id="confirmDialog"><form method="dialog"><h2 id="dialogTitle">Confirm</h2><div id="dialogBody"></div><div class="dialog-actions"><button value="cancel" class="button subtle">Cancel</button><button value="confirm" class="button danger">Continue</button></div></form></dialog>
   <dialog id="checkTemplateDialog" class="template-dialog"><div class="dialog-heading"><div><p class="eyebrow">NEW VULNERABILITY</p><h2>What should Aeacus verify?</h2><p>Choose a starting point. Every generated field remains editable.</p></div><button class="icon-button" data-close-template>×</button></div><div class="template-grid"><button data-check-template="file"><b>File setting</b><span>Match required text or a configuration value.</span></button><button data-check-template="path"><b>File or directory</b><span>Verify that a path exists or has been removed.</span></button><button data-check-template="command"><b>Command result</b><span>Run a command and evaluate its success or output.</span></button><button data-check-template="user"><b>User or group</b><span>Verify accounts, removal, passwords, or membership.</span></button><button data-check-template="service"><b>Service or software</b><span>Check service state, packages, or versions.</span></button><button data-check-template="custom"><b>Start blank</b><span>Select any supported Aeacus condition.</span></button></div></dialog>
+  <dialog id="conditionPicker" class="condition-picker"><div class="dialog-heading"><div><p class="eyebrow">CONDITION LIBRARY</p><h2>Choose a check type</h2></div><button class="icon-button" data-close-condition>×</button></div><input id="conditionSearch" type="search" placeholder="Search files, users, services, Windows, Linux…" autocomplete="off"><div id="conditionResults"></div></dialog>
   <script src="/app.js"></script>
 </body>
 </html>
